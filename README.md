@@ -39,7 +39,7 @@ The VBA script can run on all sheets successfully.
 
 I've included a few of resources used for exploring function.
 
-[Interioir Color](url)
+[Interior Color](https://stackoverflow.com/questions/365125/how-do-i-set-the-background-color-of-excel-cells-using-vba)
 
 
-[Microsoft Advanced Filter](url)
+[Microsoft Advanced Filter](https://learn.microsoft.com/en-us/office/vba/api/excel.range.advancedfilter)
