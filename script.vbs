@@ -1,113 +1,121 @@
-Sub Sum()
+Sub CalculateStockMetrics()
 
-'Declaring variables
-  Dim ws As Worksheet
-  Dim Lastrow As Long
-  Dim Opening_Value As Double
-  Dim Count As Double
-  Dim Row As Integer
- 
-For Each ws In Worksheets
+    ' Declare variables
+    Dim ws As Worksheet
+    Dim lastRow As Long
+    Dim initialOpeningValue As Double
+    Dim totalVolume As Double
+    Dim resultRow As Long
+    Dim i As Long
+    Dim lastRowPercentChange As Long
+    Dim maxPercentChange As Double
+    Dim minPercentChange As Double
+    Dim maxTotalVolume As Double
+    Dim tickerMaxPercentChange As String
+    Dim tickerMaxTotalVolume As String
+    Dim tickerMinPercentChange As String
 
-'Initializaing Variables
-      Lastrow = ws.Range("A" & Rows.Count).End(xlUp).Row
+    On Error GoTo ErrorHandler
 
-'Filtering Distinct tickers
+    For Each ws In Worksheets
 
-      ws.Range("A1:A" & Lastrow).AdvancedFilter _
-      Action:=xlFilterCopy, _
-      CopyToRange:=ws.Range("I1"), _
-      Unique:=True
-     
-     
-'Printing Headers
+        ' Determine the last row with data in column A
+        lastRow = ws.Range("A" & ws.Rows.Count).End(xlUp).Row
+        
+        ' Filter distinct tickers and copy them to column I
+        ws.Range("A1:A" & lastRow).AdvancedFilter _
+            Action:=xlFilterCopy, _
+            CopyToRange:=ws.Range("I1"), _
+            Unique:=True
+        
+        ' Print headers for the results
+        ws.Cells(1, 9).Value = "Ticker"
+        ws.Cells(1, 10).Value = "Quarterly Change"
+        ws.Cells(1, 11).Value = "Percent Change"
+        ws.Cells(1, 12).Value = "Total Stock Volume"
+        ws.Cells(1, 16).Value = "Ticker"
+        ws.Cells(1, 17).Value = "Value"
+        ws.Cells(2, 15).Value = "Greatest % Increase"
+        ws.Cells(3, 15).Value = "Greatest % Decrease"
+        ws.Cells(4, 15).Value = "Greatest Total Volume"
 
-     ws.Cells(1, 9).Value = "Ticker"
-     ws.Cells(1, 10).Value = "Quaterly Change"
-     ws.Cells(1, 11).Value = "Percent Change"
-     ws.Cells(1, 12).Value = "Total Stock Volume"
-     ws.Cells(1, 16).Value = "Ticker"
-     ws.Cells(1, 17).Value = "Value"
-     ws.Cells(2, 15).Value = "Greatest % Increase"
-     ws.Cells(3, 15).Value = "Greatest % Decrease"
-     ws.Cells(4, 15).Value = "Greatest Total Volume"
-   
-   
- 'Initializaing Variables
- 
-     Opening_Value = ws.Cells(2, 3).Value
-     Count = 0
-     Row = 2
-     
- 'Populating Values for Quarterly Change, Percent Change and Total stock
- 
-     For i = 2 To Lastrow
- 
+        ' Initialize variables for processing
+        initialOpeningValue = ws.Cells(2, 3).Value
+        totalVolume = 0
+        resultRow = 2
+        
+        ' Initialize values for summary calculations
+        maxPercentChange = -1E+308 ' Smallest possible value
+        minPercentChange = 1E+308  ' Largest possible value
+        maxTotalVolume = -1E+308
+        tickerMaxPercentChange = ""
+        tickerMinPercentChange = ""
+        tickerMaxTotalVolume = ""
+
+        ' Calculate Quarterly Change, Percent Change, and Total Stock Volume
+        For i = 2 To lastRow
+
             If ws.Cells(i, 1).Value = ws.Cells(i + 1, 1).Value Then
-             
-                 Count = Count + ws.Cells(i, 7).Value
+                ' Accumulate the volume for the same ticker
+                totalVolume = totalVolume + ws.Cells(i, 7).Value
 
- 
             Else
-                 ws.Cells(Row, 10).Value = ws.Cells(i, 6).Value - Opening_Value
-                 ws.Cells(Row, 11).Value = FormatPercent(ws.Cells(Row, 10).Value / Opening_Value)
-                 
-'Conditional Formatting cells
+                ' Calculate and record Quarterly Change and Percent Change
+                ws.Cells(resultRow, 10).Value = ws.Cells(i, 6).Value - initialOpeningValue
+                ws.Cells(resultRow, 11).Value = ws.Cells(resultRow, 10).Value / initialOpeningValue
+                ws.Cells(resultRow, 11).NumberFormat = "0.00%"
 
-                 If ws.Cells(Row, 10).Value > 0 Then
-                 
-                         ws.Cells(Row, 10).Interior.Color = vbGreen
-                         
-                 ElseIf ws.Cells(Row, 10).Value < 0 Then
-                         
-                         ws.Cells(Row, 10).Interior.Color = vbRed
-                         
-                 Else
-                         ws.Cells(Row, 10).Interior.Color = xlNone
-                 End If
- 
-                 Opening_Value = ws.Cells(i + 1, 3).Value
-                 ws.Cells(Row, 12).Value = Count + ws.Cells(i, 7).Value
-                 Count = 0
-                 Row = Row + 1
+                ' Apply conditional formatting based on Quarterly Change
+                If ws.Cells(resultRow, 10).Value > 0 Then
+                    ws.Cells(resultRow, 10).Interior.Color = vbGreen
+                ElseIf ws.Cells(resultRow, 10).Value < 0 Then
+                    ws.Cells(resultRow, 10).Interior.Color = vbRed
+                Else
+                    ws.Cells(resultRow, 10).Interior.Color = xlNone
+                End If
+                
+                ' Update the opening value and total volume for the next ticker
+                initialOpeningValue = ws.Cells(i + 1, 3).Value
+                ws.Cells(resultRow, 12).Value = totalVolume + ws.Cells(i, 7).Value
+                totalVolume = 0
+                resultRow = resultRow + 1
 
-             End If
-             
- 'Calculated Values for Summary
- 
-             ws.Cells(4, 17).Value = Application.WorksheetFunction.Max(ws.Range("L:L"))
-             ws.Cells(2, 17).Value = FormatPercent(Application.WorksheetFunction.Max(ws.Range("K:K")))
-             ws.Cells(3, 17).Value = FormatPercent(Application.WorksheetFunction.Min(ws.Range("K:K")))
- 
-     Next
-     
- 'Calculated Ticker Value for Summary
- 
-   Lastrow_Percent_Change = ws.Range("K" & Rows.Count).End(xlUp).Row
+                ' Update summary values if necessary
+                If ws.Cells(resultRow - 1, 11).Value > maxPercentChange Then
+                    maxPercentChange = ws.Cells(resultRow - 1, 11).Value
+                    tickerMaxPercentChange = ws.Cells(resultRow - 1, 9).Value
+                End If
+                
+                If ws.Cells(resultRow - 1, 11).Value < minPercentChange Then
+                    minPercentChange = ws.Cells(resultRow - 1, 11).Value
+                    tickerMinPercentChange = ws.Cells(resultRow - 1, 9).Value
+                End If
+                
+                If ws.Cells(resultRow - 1, 12).Value > maxTotalVolume Then
+                    maxTotalVolume = ws.Cells(resultRow - 1, 12).Value
+                    tickerMaxTotalVolume = ws.Cells(resultRow - 1, 9).Value
+                End If
 
-     
-   For i = 2 To Lastrow_Percent_Change
-           
-             If ws.Cells(i, 11).Value = ws.Cells(2, 17).Value Then
-                   
-                   ws.Cells(2, 16).Value = ws.Cells(i, 9)
-                   
-             ElseIf ws.Cells(i, 12).Value = Application.WorksheetFunction.Max(ws.Range("L:L")) Then
-                   
-                    ws.Cells(4, 16).Value = ws.Cells(i, 9)
-                   
-             ElseIf ws.Cells(i, 11).Value = ws.Cells(3, 17).Value Then
-                   
-                    ws.Cells(3, 16).Value = ws.Cells(i, 9)
-                   
-       
             End If
-   Next
-   
- 
- Next
- 
- End Sub
 
+        Next i
+        
+        ' Place the summary values in the worksheet
+        ws.Cells(2, 16).Value = tickerMaxPercentChange
+        ws.Cells(2, 17).Value = Format(maxPercentChange, "0.00%")
+        ws.Cells(3, 16).Value = tickerMinPercentChange
+        ws.Cells(3, 17).Value = Format(minPercentChange, "0.00%")
+        ws.Cells(4, 16).Value = tickerMaxTotalVolume
+        ws.Cells(4, 17).Value = maxTotalVolume
+
+    Next ws
+
+    Exit Sub
+
+ErrorHandler:
+    MsgBox "An error occurred: " & Err.Description, vbExclamation
+    Resume Next
+
+End Sub
 
 
